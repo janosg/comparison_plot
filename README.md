@@ -1,2 +1,3 @@
 # comparison_plot
 Interactive plot to compare parameter estimates across models.
+In the file comparison_plot.ipynb you will find the generalized function for a gridplot of two graphs: the first graph with parameter and model names from which you can box-select all three points of a model and those points will stand out in the second graph which contains the parameter names and the estimates for each parameter from each model. Click-selecting ("tap tool") one point in the first graph will select only one point in the second graph. With the hovel tool a box with information of each point is displayed when mousing over it.
