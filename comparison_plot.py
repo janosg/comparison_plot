@@ -6,8 +6,8 @@ from bokeh.models import ColumnDataSource, HoverTool, Circle
 from bokeh.plotting import figure, show, output_notebook
 from bokeh.layouts import gridplot, column
 
-def comparison_plot(data_dict):
-    """Make a comparison plot.
+def comparison_plot(data_dict=None, df=None):
+    """Make a comparison plot either from a data_dict or a DataFrame.
 
     Args:
         data_dict (dict): The keys are the names of different models.
@@ -17,9 +17,12 @@ def comparison_plot(data_dict):
                 - 'lower', containing the lower bound of the confidence interval
                 - 'upper', containing the upper bound of the confidence interval
 
-    """
+        df (pd.DataFrame): DataFrame with columns
+            *model*, *param_value*, *param_name*, *lower*, *upper*, *group*
 
-    df = _convert_res_dicts_to_df(res_dict=data_dict)
+    """
+    if df is None:
+        df = _convert_res_dicts_to_df(res_dict=data_dict)
     source = ColumnDataSource(df)
 
     output_notebook()
@@ -27,15 +30,15 @@ def comparison_plot(data_dict):
     # Make plot with model and parameter names
     p0 = figure(
         title="Models",
-        x_range=sorted(df['model_name'].unique()),
-        y_range=list(set(df.index)),
+        x_range=sorted(df['model'].unique(), reverse=True),
+        y_range=df['param_name'].unique().tolist(),
         toolbar_location="right",
         plot_width=600,
         plot_height=150,
         tools="pan,wheel_zoom,box_zoom,box_select,tap,reset,save",
     )
     p0.grid.grid_line_alpha = 0
-    p0.circle("model_name", "param_name", fill_color="salmon", size=8, source=source)
+    p0.circle("model", "param_name", fill_color="salmon", size=8, source=source)
 
     # Make plot with estimates and parameter names
     TOOLTIPS = [
@@ -52,7 +55,7 @@ def comparison_plot(data_dict):
     )
 
     p1 = figure(
-        title="Comparison Plot", y_range=list(set(df.index)),
+        title="Comparison Plot", y_range=df['param_name'].unique().tolist(),
         toolbar_location="right", **options
     )
     p1.grid.grid_line_alpha = 0
@@ -87,12 +90,12 @@ def comparison_plot(data_dict):
 
 def _convert_res_dicts_to_df(res_dict):
     df = pd.DataFrame(
-        columns=['param_value', 'lower', 'upper', 'model_name', 'param_name', 'std', 'color'])
+        columns=['param_value', 'lower', 'upper', 'model', 'param_name', 'std', 'color'])
 
     model_counter = 0
-    for model_name, param_df in res_dict.items():
+    for model, param_df in res_dict.items():
         ext_param_df = param_df.copy(deep=True)
-        ext_param_df['model_name'] = model_name
+        ext_param_df['model'] = model
         ext_param_df['param_name'] = ext_param_df.index
         # assuming that upper and lower are 95% CIs and using the 68-95-99.7 rule
         # https://en.wikipedia.org/wiki/68%E2%80%9395%E2%80%9399.7_rule
