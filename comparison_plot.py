@@ -2,6 +2,9 @@
 
 import pandas as pd
 import numpy as np
+from bokeh.models import ColumnDataSource, HoverTool, Circle
+from bokeh.plotting import figure, show, output_notebook
+from bokeh.layouts import gridplot, column
 
 def comparison_plot(data_dict):
     """Make a comparison plot.
@@ -15,82 +18,24 @@ def comparison_plot(data_dict):
                 - 'upper', containing the upper bound of the confidence interval
 
     """
-    from bokeh.models import ColumnDataSource, HoverTool, Circle
-    from bokeh.plotting import figure, show, output_notebook
-    from bokeh.layouts import gridplot, column
 
-    # Make new DataFrame to link graphs with ColumnDataSource
+    df = _convert_res_dicts_to_df(res_dict=data_dict)
+    source = ColumnDataSource(df)
 
-    dic = data_dict.copy()
-
-    for value in dic.values():
-        M = len(value.index)
-
-    N = len(dic)
-
-    params = []
-    lower = []
-    upper = []
-    parameter_lists = [[] for i in range(M)]
-    param_name = []
-    stds_list = []
-    model = []
-
-    for key, value in dic.items():
-        model.append(key)
-        param_name = value.index
-        params.append(value["params"])
-        lower.append(value["lower"])
-        upper.append(value["upper"])
-        for i in range(M):
-            parameter_lists[i].append(value["params"][i])
-
-    for i in range(M):
-        stds_list.append(np.std(parameter_lists[i]))
-
-    params = np.array(params)
-    params = params.ravel()
-    lower = np.array(lower)
-    lower = lower.ravel()
-    upper = np.array(upper)
-    upper = upper.ravel()
-    param_name = list(param_name)
-    models = np.repeat(model, M)
-    param_names = np.array(param_name * N)
-    stds = np.array(stds_list * N)
-
-    s = pd.DataFrame(
-        {
-            "params": params,
-            "stds": stds,
-            "lower": lower,
-            "upper": upper,
-            "models": models,
-            "param_names": param_names,
-        }
-    )
-
-    # Make plot
-    options = dict(
-        plot_width=600,
-        plot_height=300,
-        tools="pan,wheel_zoom,box_zoom,box_select,tap,reset,save",
-    )
-    source = ColumnDataSource(s)
     output_notebook()
 
     # Make plot with model and parameter names
     p0 = figure(
         title="Models",
-        x_range=model,
-        y_range=param_name,
+        x_range=sorted(df['model_name'].unique()),
+        y_range=list(set(df.index)),
         toolbar_location="right",
         plot_width=600,
         plot_height=150,
         tools="pan,wheel_zoom,box_zoom,box_select,tap,reset,save",
     )
     p0.grid.grid_line_alpha = 0
-    p0.circle("models", "param_names", fill_color="salmon", size=8, source=source)
+    p0.circle("model_name", "param_name", fill_color="salmon", size=8, source=source)
 
     # Make plot with estimates and parameter names
     TOOLTIPS = [
@@ -100,12 +45,19 @@ def comparison_plot(data_dict):
         ("standard deviation", "@stds{(0.0000)}"),
     ]
 
+    options = dict(
+        plot_width=600,
+        plot_height=300,
+        tools="pan,wheel_zoom,box_zoom,box_select,tap,reset,save",
+    )
+
     p1 = figure(
-        title="Comparison Plot", y_range=param_name, toolbar_location="right", **options
+        title="Comparison Plot", y_range=list(set(df.index)),
+        toolbar_location="right", **options
     )
     p1.grid.grid_line_alpha = 0
     p1.hbar(
-        "param_names",
+        "param_name",
         left="lower",
         right="upper",
         height=0.3,
@@ -115,8 +67,8 @@ def comparison_plot(data_dict):
         source=source,
     )
     circle_glyph = p1.circle(
-        "params",
-        "param_names",
+        "param_value",
+        "param_name",
         fill_color="blue",
         selection_fill_color="green",
         nonselection_fill_alpha=0.2,
@@ -130,3 +82,23 @@ def comparison_plot(data_dict):
     p = gridplot([p0, p1], toolbar_location="right", ncols=1)
 
     return show(p)
+
+
+
+def _convert_res_dicts_to_df(res_dict):
+    df = pd.DataFrame(
+        columns=['param_value', 'lower', 'upper', 'model_name', 'param_name', 'std', 'color'])
+
+    model_counter = 0
+    for model_name, param_df in res_dict.items():
+        ext_param_df = param_df.copy(deep=True)
+        ext_param_df['model_name'] = model_name
+        ext_param_df['param_name'] = ext_param_df.index
+        # assuming that upper and lower are 95% CIs and using the 68-95-99.7 rule
+        # https://en.wikipedia.org/wiki/68%E2%80%9395%E2%80%9399.7_rule
+        ext_param_df['std'] = (ext_param_df['upper'] - ext_param_df['lower']) / 4
+        ext_param_df['color'] = "mediumelectricblue"
+        df = df.append(ext_param_df, sort=False)
+        model_counter += 1
+
+    return df
