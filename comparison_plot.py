@@ -24,51 +24,56 @@ def comparison_plot(data_dict=None, df=None):
     """
     if df is None:
         df = _convert_res_dicts_to_df(res_dict=data_dict)
-    source = ColumnDataSource(df)
+
+    if 'group' not in df.columns:
+        df['group'] = 'all'
 
     output_notebook()
 
-    p1 = figure(
-        title="Comparison Plot",
-        y_range=sorted(df["param_name"].unique(), reverse=True),
-        toolbar_location="right",
-        plot_width=600,
-        plot_height=300,
-        tools="pan,wheel_zoom,box_zoom,box_select,tap,reset,save",
-    )
-    p1.grid.grid_line_alpha = 0
-    p1.hbar(
-        "param_name",
-        left="lower",
-        right="upper",
-        height=0.3,
-        fill_alpha=0.2,
-        nonselection_fill_alpha=0,
-        line_color=None,
-        source=source,
-    )
-    circle_glyph = p1.circle(
-        "param_value",
-        "param_name",
-        fill_color="blue",
-        selection_fill_color="green",
-        nonselection_fill_alpha=0.2,
-        size=8,
-        source=source,
-    )
+    plots = []
+    for group_name in df['group'].unique():
+        group_df = df[df['group'] == group_name]
+        source = ColumnDataSource(group_df)
+        group_plot = figure(
+            title="Comparison Plot of {} Parameters".format(group_name.title()),
+            y_range=sorted(group_df["param_name"].unique(), reverse=True),
+            toolbar_location="right",
+            plot_width=600,
+            plot_height=300,
+            tools="pan,wheel_zoom,box_zoom,box_select,tap,reset,save",
+        )
+        group_plot.grid.grid_line_alpha = 0
+        group_plot.hbar(
+            "param_name",
+            left="lower",
+            right="upper",
+            height=0.3,
+            fill_alpha=0.2,
+            nonselection_fill_alpha=0,
+            line_color=None,
+            source=source,
+        )
+        circle_glyph = group_plot.circle(
+            "param_value",
+            "param_name",
+            fill_color="#035096",
+            selection_fill_color="firebrick",
+            nonselection_fill_alpha=0.2,
+            size=8,
+            source=source,
+        )
 
-    tooltips = [
-        ("parameter value", "@param_value"),
-        ("confidence interval", "(@lower{(0.000)}, @upper{(0.000)})"),
-        ("model", "@model"),
-        # ("standard deviation", "@std{(0.0000)}"),
-    ]
-    hover = HoverTool(renderers=[circle_glyph], tooltips=tooltips)
-    p1.tools.append(hover)
+        tooltips = [
+            ("parameter value", "@param_value"),
+            ("confidence interval", "(@lower{(0.000)}, @upper{(0.000)})"),
+            ("model", "@model"),
+            # ("standard deviation", "@std{(0.0000)}"),
+        ]
+        hover = HoverTool(renderers=[circle_glyph], tooltips=tooltips)
+        group_plot.tools.append(hover)
+        plots.append(group_plot)
 
-    # Make gridplot with both plots
-    p = gridplot([p1], toolbar_location="right", ncols=1)
-
+    p = gridplot(plots, toolbar_location="right", ncols=1)
     return show(p)
 
 
