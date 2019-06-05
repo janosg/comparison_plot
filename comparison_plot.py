@@ -6,6 +6,7 @@ from bokeh.models import ColumnDataSource, HoverTool, Circle
 from bokeh.plotting import figure, show, output_notebook
 from bokeh.layouts import gridplot, column
 
+
 def comparison_plot(data_dict=None, df=None):
     """Make a comparison plot either from a data_dict or a DataFrame.
 
@@ -27,36 +28,13 @@ def comparison_plot(data_dict=None, df=None):
 
     output_notebook()
 
-    # Make plot with model and parameter names
-    p0 = figure(
-        title="Models",
-        x_range=sorted(df['model'].unique(), reverse=True),
-        y_range=df['param_name'].unique().tolist(),
+    p1 = figure(
+        title="Comparison Plot",
+        y_range=sorted(df["param_name"].unique(), reverse=True),
         toolbar_location="right",
-        plot_width=600,
-        plot_height=150,
-        tools="pan,wheel_zoom,box_zoom,box_select,tap,reset,save",
-    )
-    p0.grid.grid_line_alpha = 0
-    p0.circle("model", "param_name", fill_color="salmon", size=8, source=source)
-
-    # Make plot with estimates and parameter names
-    TOOLTIPS = [
-        ("parameter value", "@params"),
-        ("confidence interval", "(@lower{(0.000)}, @upper{(0.000)})"),
-        ("model", "@models"),
-        ("standard deviation", "@stds{(0.0000)}"),
-    ]
-
-    options = dict(
         plot_width=600,
         plot_height=300,
         tools="pan,wheel_zoom,box_zoom,box_select,tap,reset,save",
-    )
-
-    p1 = figure(
-        title="Comparison Plot", y_range=df['param_name'].unique().tolist(),
-        toolbar_location="right", **options
     )
     p1.grid.grid_line_alpha = 0
     p1.hbar(
@@ -78,29 +56,36 @@ def comparison_plot(data_dict=None, df=None):
         size=8,
         source=source,
     )
-    hover = HoverTool(renderers=[circle_glyph], tooltips=TOOLTIPS)
+
+    tooltips = [
+        ("parameter value", "@param_value"),
+        ("confidence interval", "(@lower{(0.000)}, @upper{(0.000)})"),
+        ("model", "@model"),
+        # ("standard deviation", "@std{(0.0000)}"),
+    ]
+    hover = HoverTool(renderers=[circle_glyph], tooltips=tooltips)
     p1.tools.append(hover)
 
     # Make gridplot with both plots
-    p = gridplot([p0, p1], toolbar_location="right", ncols=1)
+    p = gridplot([p1], toolbar_location="right", ncols=1)
 
     return show(p)
 
 
-
 def _convert_res_dicts_to_df(res_dict):
     df = pd.DataFrame(
-        columns=['param_value', 'lower', 'upper', 'model', 'param_name', 'std', 'color'])
+        columns=["param_value", "lower", "upper", "model", "param_name", "std", "color"]
+    )
 
     model_counter = 0
     for model, param_df in res_dict.items():
         ext_param_df = param_df.copy(deep=True)
-        ext_param_df['model'] = model
-        ext_param_df['param_name'] = ext_param_df.index
+        ext_param_df["model"] = model
+        ext_param_df["param_name"] = ext_param_df.index
         # assuming that upper and lower are 95% CIs and using the 68-95-99.7 rule
         # https://en.wikipedia.org/wiki/68%E2%80%9395%E2%80%9399.7_rule
-        ext_param_df['std'] = (ext_param_df['upper'] - ext_param_df['lower']) / 4
-        ext_param_df['color'] = "mediumelectricblue"
+        ext_param_df["std"] = (ext_param_df["upper"] - ext_param_df["lower"]) / 4
+        ext_param_df["color"] = "mediumelectricblue"
         df = df.append(ext_param_df, sort=False)
         model_counter += 1
 
