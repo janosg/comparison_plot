@@ -28,6 +28,8 @@ def comparison_plot(data_dict=None, df=None):
 
     if "group" not in df.columns:
         df["group"] = "all"
+    if "color" not in df.columns:
+        df["color"] = "#035096"
 
     output_notebook()
 
@@ -54,12 +56,12 @@ def comparison_plot(data_dict=None, df=None):
             x="param_value",
             y="param_name",
             size=12,
-            color="#035096",
+            color="color",
             alpha=0.5,
-            nonselection_color="#035096",
+            nonselection_color="color",
             selection_color="firebrick",
-            nonselection_alpha=0.2,
-            selection_alpha=0.7,
+            nonselection_alpha=0.5,
+            selection_alpha=0.9,
         )
 
         # add the confidence_intervals
@@ -74,6 +76,8 @@ def comparison_plot(data_dict=None, df=None):
             nonselection_fill_alpha=0.0,
             selection_alpha=0.25,
             line_alpha=0.1,
+            color="color",
+            selection_color="color",
         )
 
         # HoverTool
@@ -99,6 +103,7 @@ def comparison_plot(data_dict=None, df=None):
 
 
 def _convert_res_dicts_to_df(res_dict):
+    # To-Do: Add color handling from res_dict!
     df = pd.DataFrame(
         columns=[
             "param_value",
@@ -121,7 +126,6 @@ def _convert_res_dicts_to_df(res_dict):
         ext_param_df["std"] = (
             ext_param_df["conf_int_upper"] - ext_param_df["conf_int_lower"]
         ) / 4
-        ext_param_df["color"] = "#035096"
         df = df.append(ext_param_df, sort=False)
         model_counter += 1
 
