@@ -8,7 +8,7 @@ from bokeh.layouts import gridplot, column
 from bokeh.models.callbacks import CustomJS
 
 with open('callback.js', 'r') as f:
-    callback_js_code = f.read()
+    js_code = f.read()
 
 def comparison_plot(data_dict=None, df=None):
     """Make a comparison plot either from a data_dict or a DataFrame.
@@ -33,69 +33,55 @@ def comparison_plot(data_dict=None, df=None):
 
     output_notebook()
 
-    plots = []
-    sources = []
-    for group_name in df['group'].unique():
-        print(group_name)
-        group_df = df[df['group'] == group_name]
-        group_source = ColumnDataSource(group_df)
+    # safety measure to make sure the index
+    # gives the position in the arrays
+    # that the source data dictionary points to
+    safe_df = df.reset_index(drop=True)
 
-        # plot
+    source = ColumnDataSource(safe_df)
+
+    plots = []
+    for group_name in df['group'].unique():
+
+        # create the "canvas"
         group_plot = figure(
             title="Comparison Plot of {} Parameters".format(group_name.title()),
-            y_range=sorted(group_df["param_name"].unique(), reverse=True),
-            toolbar_location="right",
+            y_range=df[df['group'] == group_name]["param_name"].unique(),
             plot_width=600,
             plot_height=300,
-            tools="reset,save",
         )
-        group_plot.grid.grid_line_alpha = 0
-        group_plot.hbar(
-            "param_name",
-            left="lower",
-            right="upper",
-            height=0.3,
-            fill_alpha=0.2,
-            fill_color='#035096',
-            nonselection_fill_alpha=0,
-            line_color=None,
-            source=group_source,
-        )
+
+        # add circles representing the parameter value
         circle_glyph = group_plot.circle(
-            "param_value",
-            "param_name",
-            fill_color="#035096",
-            selection_fill_color="firebrick",
-            nonselection_fill_alpha=0.2,
-            size=8,
-            source=group_source,
+            source=source,
+            x="param_value",
+            y="param_name",
+            size=12,
+            color='#035096',
+            alpha=0.5,
+            nonselection_color="#035096",
+            selection_color="firebrick",
+            nonselection_alpha=0.2,
+            selection_alpha=0.7,
         )
 
         # HoverTool
         tooltips = [
             ("parameter value", "@param_value"),
-            ("confidence interval", "(@lower{(0.000)}, @upper{(0.000)})"),
-            ("model", "@model"),
-            # ("standard deviation", "@std{(0.0000)}"),
-        ]
+            ("model", "@model")]
         hover = HoverTool(renderers=[circle_glyph], tooltips=tooltips)
         group_plot.tools.append(hover)
 
-        plots.append(group_plot)
-        sources.append(group_source)
-
-    # TapTool
-    for group_plot, src in zip(plots, sources):
-        other_src = [x for x in sources if x is not src]
-        callback = CustomJS(
-            args={'src': src, 'other': other_src}, code=callback_js_code)
-        tap = TapTool(callback=callback)
+        # TapTool
+        js_kwargs = {"source": source}
+        js_callback = CustomJS(args=js_kwargs, code=js_code)
+        tap = TapTool(callback=js_callback)
         group_plot.tools.append(tap)
 
+        plots.append(group_plot)
 
-
-    p = gridplot(plots, toolbar_location="right", ncols=1)
-    return show(p), plots, sources
+    grid = gridplot(plots, toolbar_location="right", ncols=1)
+    show(grid)
 
 
 def _convert_res_dicts_to_df(res_dict):
