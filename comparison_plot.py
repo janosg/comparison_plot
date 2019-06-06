@@ -2,10 +2,13 @@
 
 import pandas as pd
 import numpy as np
-from bokeh.models import ColumnDataSource, HoverTool, Circle
+from bokeh.models import ColumnDataSource, HoverTool, TapTool
 from bokeh.plotting import figure, show, output_notebook
 from bokeh.layouts import gridplot, column
+from bokeh.models.callbacks import CustomJS
 
+with open('callback.js', 'r') as f:
+    callback_js_code = f.read()
 
 def comparison_plot(data_dict=None, df=None):
     """Make a comparison plot either from a data_dict or a DataFrame.
@@ -31,16 +34,20 @@ def comparison_plot(data_dict=None, df=None):
     output_notebook()
 
     plots = []
+    sources = []
     for group_name in df['group'].unique():
+        print(group_name)
         group_df = df[df['group'] == group_name]
-        source = ColumnDataSource(group_df)
+        group_source = ColumnDataSource(group_df)
+
+        # plot
         group_plot = figure(
             title="Comparison Plot of {} Parameters".format(group_name.title()),
             y_range=sorted(group_df["param_name"].unique(), reverse=True),
             toolbar_location="right",
             plot_width=600,
             plot_height=300,
-            tools="pan,wheel_zoom,box_zoom,box_select,tap,reset,save",
+            tools="reset,save",
         )
         group_plot.grid.grid_line_alpha = 0
         group_plot.hbar(
@@ -49,9 +56,10 @@ def comparison_plot(data_dict=None, df=None):
             right="upper",
             height=0.3,
             fill_alpha=0.2,
+            fill_color='#035096',
             nonselection_fill_alpha=0,
             line_color=None,
-            source=source,
+            source=group_source,
         )
         circle_glyph = group_plot.circle(
             "param_value",
@@ -60,9 +68,10 @@ def comparison_plot(data_dict=None, df=None):
             selection_fill_color="firebrick",
             nonselection_fill_alpha=0.2,
             size=8,
-            source=source,
+            source=group_source,
         )
 
+        # HoverTool
         tooltips = [
             ("parameter value", "@param_value"),
             ("confidence interval", "(@lower{(0.000)}, @upper{(0.000)})"),
@@ -71,10 +80,22 @@ def comparison_plot(data_dict=None, df=None):
         ]
         hover = HoverTool(renderers=[circle_glyph], tooltips=tooltips)
         group_plot.tools.append(hover)
+
         plots.append(group_plot)
+        sources.append(group_source)
+
+    # TapTool
+    for group_plot, src in zip(plots, sources):
+        other_src = [x for x in sources if x is not src]
+        callback = CustomJS(
+            args={'src': src, 'other': other_src}, code=callback_js_code)
+        tap = TapTool(callback=callback)
+        group_plot.tools.append(tap)
+
+
 
     p = gridplot(plots, toolbar_location="right", ncols=1)
-    return show(p)
+    return show(p), plots, sources
 
 
 def _convert_res_dicts_to_df(res_dict):
