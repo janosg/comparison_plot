@@ -1,4 +1,32 @@
-"""Functions for making the comparison plot."""
+"""
+Draw an interactive comparison plot of named result dictionaries.
+
+The plot can plot many results for large numbers of parameters
+against each other.
+
+The plot can answer the following questions:
+
+1. How are the parameters distributed?
+2. How large are the differences in parameter estimates between results
+compared to the uncertainty around the parameter estimates?
+3. Are parameters of groups of results clustered?
+
+The results can be supplied either as a dictionary or as a pandas DataFrame.
+
+The dictionary of the results must map ...
+    - talk to Janos about res_dict and params returned by minimize and
+    match current or planned strcuture.
+
+Providing a pandas DataFrame gives you additional freedom but must comply
+with the following ...
+    - make sure to mention that the index will be reset!
+
+
+Example Usage: [link to notebook!]
+
+
+
+"""
 
 import pandas as pd
 import numpy as np
